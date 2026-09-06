@@ -4,12 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#182f50">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Catálogo P&M Bellpapell">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png">
 <title>Catálogo P&M Bellpapell</title>
 <style>
 :root{
@@ -68,8 +62,6 @@ main{max-width:1120px;margin:auto;padding:24px 18px 100px}
 .hero h1{margin:0 0 8px;font-size:clamp(28px,5vw,44px);letter-spacing:-1.3px}
 .hero p{margin:0;color:var(--muted);font-size:16px;max-width:620px;line-height:1.55}
 .hero .mini{margin-top:18px;display:inline-flex;align-items:center;gap:8px;color:var(--navy);font-weight:700}
-.install-app-btn{display:none;margin-top:14px;border:1px solid var(--gold);background:#fff;color:var(--navy);border-radius:14px;padding:11px 14px;font-weight:800;box-shadow:0 5px 14px rgba(24,47,80,.07)}
-.install-app-btn.show{display:inline-flex;align-items:center;gap:8px}
 .section-title{display:flex;align-items:end;justify-content:space-between;gap:15px;margin:25px 2px 12px}
 .section-title h2{font-size:22px;margin:0}
 .section-title small{color:var(--muted)}
@@ -170,8 +162,30 @@ main{max-width:1120px;margin:auto;padding:24px 18px 100px}
 .field label{display:block;font-size:12px;font-weight:800;color:#182f50;margin-bottom:5px}.field input,.field select{width:100%;padding:12px;border:1px solid #dfe5ec;border-radius:12px;box-sizing:border-box;background:#fff}
 .preview-img{width:100%;max-height:180px;object-fit:contain;border-radius:14px;background:#f7f7f7;display:none;margin-top:8px}
 .modal.admin-modal{z-index:30}.admin-note{font-size:12px;color:#7c8490;margin-top:8px}
+.crop-wrap{margin-top:10px}
+.crop-canvas-wrap{width:100%;max-width:360px;margin:10px auto;background:#eef1f4;border-radius:18px;overflow:hidden;touch-action:none}
+#cropCanvas{width:100%;aspect-ratio:1/1;display:block;cursor:grab;touch-action:none}
+#cropCanvas:active{cursor:grabbing}
+.crop-help{font-size:12px;color:#7c8490;text-align:center;margin:7px 0 10px}
+.crop-controls{display:flex;align-items:center;gap:10px;margin:8px 0}
+.crop-controls label{font-size:12px;font-weight:800;color:#182f50;white-space:nowrap}
+.crop-controls input{flex:1}
+.crop-actions{display:flex;gap:9px;margin-top:12px}
+.crop-actions button{flex:1}
+
 @media(max-width:600px){.form-grid{grid-template-columns:1fr}.form-grid .full{grid-column:auto}}
-</style>
+<style>
+.variation-add{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.variation-list{display:grid;gap:8px;margin-top:10px}
+.variation-row{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #e5e7eb;border-radius:12px;background:#fff}
+.variation-row img{width:54px;height:54px;object-fit:cover;border-radius:10px}
+.variation-row div{flex:1}.variation-row small{display:block;color:#777;margin-top:2px}
+.variant-picker{margin:10px 0}.variant-picker>span{display:block;font-size:.86rem;font-weight:700;margin-bottom:6px}
+.variant-buttons{display:flex;flex-wrap:wrap;gap:6px}
+.variant-btn{border:1px solid #d7dbe0;background:#fff;border-radius:999px;padding:7px 10px;cursor:pointer}
+.variant-btn.active{font-weight:700;box-shadow:0 0 0 2px rgba(0,0,0,.08)}
+@media(max-width:520px){.variation-add{grid-template-columns:1fr}}
+<style>#decorSubcatButtons .cat.active{border-color:#d98ab0;box-shadow:0 0 0 2px rgba(217,138,176,.18);}</style></style>
 
 <style>
 .search-btn{
@@ -202,7 +216,6 @@ main{max-width:1120px;margin:auto;padding:24px 18px 100px}
     <h1>Escolha suas peças ✨</h1>
     <p>Explore o acervo P&M Bellpapell e monte sua decoração do seu jeito. Selecione as peças que você gostou e envie sua escolha pelo WhatsApp.</p>
     <div class="mini">🎀 Locação de decoração para festas</div>
-    <button id="installAppBtn" class="install-app-btn" type="button">📲 Instalar catálogo no celular</button>
   </section>
 
   <form class="search-row" id="searchForm">
@@ -219,16 +232,20 @@ main{max-width:1120px;margin:auto;padding:24px 18px 100px}
   <div class="section-title"><h2>Categorias</h2><small id="catStatus">Todos os itens</small></div>
   <section class="categories" id="categories"></section>
 
-  <section id="decorSubcats" style="display:none;margin:0 0 22px">
+  <section id="decorSubcats" style="display:none;margin:0 0 22px"><div class="section-title"><h2 id="subcatTitle">Escolha uma categoria</h2><small id="subcatHint">Escolha uma categoria</small></div>
   <div class="section-title"><h2>🎀 Decoração</h2><small>Escolha uma categoria</small></div>
   <div class="panel-size-tabs" id="decorSubcatButtons"></div>
 </section>
 
 <section id="cakeGallery" style="display:none;margin:0 0 22px">
-  <div class="section-title"><h2>🎂 Bolos Fake</h2><small>Galeria de fotos</small></div>
+  <div class="section-title"><h2>🎂 Bolos Fake</h2><small>Escolha uma galeria</small></div>
+  <div class="panel-size-tabs">
+    <button class="cat panel-size active" data-cake-type="simples" onclick="showCakeType('simples')">🎂 Bolo Fake Simples<br><span>R$ 30,00</span></button>
+    <button class="cat panel-size" data-cake-type="especial" onclick="showCakeType('especial')">🎂 Bolo Fake Especial<br><span>Valor a combinar</span></button>
+  </div>
   <div id="cakePhotos" class="products"></div>
   <div class="admin-only" style="margin-top:14px;gap:8px;flex-wrap:wrap">
-    <button class="admin-btn primary" onclick="openCakePhotoPicker()">＋ Adicionar fotos de bolos fake</button>
+    <button class="admin-btn primary" onclick="openCakePhotoPicker()">＋ Adicionar fotos nesta galeria</button>
     <input id="cakePhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="addCakePhotos(event)">
   </div>
 </section>
@@ -241,6 +258,9 @@ main{max-width:1120px;margin:auto;padding:24px 18px 100px}
     </div>
     <div id="panelPhotos" class="products"></div>
     <div class="admin-only" id="panelAdminTools" style="margin-top:14px;gap:8px;flex-wrap:wrap">
+      <label style="min-width:150px">Valor 50 × 50 cm<br><input id="panelPrice50" type="number" min="0" step="0.01" placeholder="R$"></label>
+      <label style="min-width:150px">Valor 130/150 cm<br><input id="panelPrice130" type="number" min="0" step="0.01" placeholder="R$"></label>
+      <button class="admin-btn primary" onclick="savePanelPrices()">💾 Salvar valores</button>
       <button class="admin-btn primary" id="btnAddPanel50" onclick="openPanelPhotoPicker('50x50')">＋ Adicionar fotos 50 × 50</button>
       <button class="admin-btn primary" id="btnAddPanel130" onclick="openPanelPhotoPicker('130ou150')">＋ Adicionar fotos 130/150</button>
       <input id="panelPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="addPanelPhotos(event)">
@@ -267,7 +287,23 @@ main{max-width:1120px;margin:auto;padding:24px 18px 100px}
   <div class="sheet">
     <div class="sheet-head"><h2 id="productModalTitle">Cadastrar peça 🎀</h2><button class="close" onclick="closeProductModal()">×</button></div>
     <div class="form-grid">
-      <div class="field full"><label>📷 Foto da peça</label><input id="pPhoto" type="file" accept="image/*" onchange="previewPhoto(event)"><img id="photoPreview" class="preview-img"></div>
+      <div class="field full">
+  <label>📷 Foto principal da peça</label>
+  <input id="pPhoto" type="file" accept="image/*" onchange="previewPhoto(event)">
+  <img id="photoPreview" class="preview-img">
+</div>
+<div class="field full" id="variationBox">
+  <label>🎨 Cores / variações da mesma peça</label>
+  <div class="variation-add">
+    <input id="variationName" placeholder="Ex.: Rosa, Azul, Branco">
+    <input id="variationPhoto" type="file" accept="image/*" onchange="previewVariationPhoto(event)">
+  </div>
+  <div class="admin-note" style="margin-top:8px">
+    Cadastre a peça uma única vez. Para cada cor, informe o nome e escolha uma foto. A foto será cortada antes de entrar na variação.
+  </div>
+  <div id="variationList" class="variation-list"></div>
+  <button type="button" class="admin-btn primary" style="margin-top:10px" onclick="addVariationFromFields()">＋ Adicionar esta cor</button>
+</div>
       <div class="field full"><label>🏷️ Nome da peça</label><input id="pName" placeholder="Ex.: Mesa provençal branca"></div>
       <div class="field"><label>💰 Valor da locação</label><input id="pPrice" type="number" min="0" step="0.01" placeholder="0,00"></div>
       <div class="field"><label>📂 Categoria</label><select id="pCat" onchange="updateSubcats()"></select></div>
@@ -275,6 +311,18 @@ main{max-width:1120px;margin:auto;padding:24px 18px 100px}
     </div>
     <div class="admin-note">A foto é salva no próprio catálogo. Como este catálogo é um arquivo HTML independente, os cadastros ficam neste navegador.</div>
     <div class="actions" style="margin-top:14px"><button class="btn light" onclick="closeProductModal()">Cancelar</button><button class="btn primary" onclick="saveProduct()">Salvar peça</button></div>
+  </div>
+</div>
+
+<div class="modal admin-modal" id="cropModal" onclick="if(event.target===this)cancelCrop()">
+  <div class="sheet">
+    <div class="sheet-head"><h2>✂️ Ajustar foto</h2><button class="close" onclick="cancelCrop()">×</button></div>
+    <div class="crop-wrap">
+      <div class="crop-canvas-wrap"><canvas id="cropCanvas" width="360" height="360"></canvas></div>
+      <div class="crop-help">Arraste a foto em qualquer direção. Arraste os cantos da moldura para escolher exatamente a área do corte.</div>
+      <div class="crop-controls"><label for="cropZoom">🔍 Zoom</label><input id="cropZoom" type="range" min="1" max="4" step="0.01" value="1"></div>
+      <div class="crop-actions"><button class="btn light" onclick="cancelCrop()">Cancelar</button><button class="btn primary" onclick="applyCrop()">✂️ Aplicar corte</button></div>
+    </div>
   </div>
 </div>
 <div class="modal admin-modal" id="pinModal" onclick="if(event.target===this)closePinModal()">
@@ -294,7 +342,9 @@ const categories = [
   ["todos","✨","Todos","Ver o acervo"],
   ["moveis","🪑","Móveis","Mesas, cilindros e outros móveis"],
   ["decoracao","🎀","Decoração","Flores, personagens, displays e peças decorativas"],
-  ["estrutura","🏛️","Estrutura","Painéis, suportes, cubos e estruturas especiais"],
+  ["bolos-fake","🎂","Bolos Fake","Bolo Fake Simples e Especial"],
+  ["paineis","🏛️","Painéis","Painéis por tamanho e valor"],
+  ["estrutura","🏗️","Estrutura","Suportes, cubos e estruturas especiais"],
   ["mesa-posta","🍰","Mesa posta","Boleiras, bandejas e porta-doces"],
   ["texteis","🧵","Têxteis","Tapetes, toalhas, capas e outros"],
   ["kits","📦","Kits","Kits pré-montados e Festa na Mesa"]
@@ -302,14 +352,15 @@ const categories = [
 
 const subcategories = {
   moveis:["Mesas","Mesas de apoio","Cilindros","Cômoda G","Cômoda M","Outros móveis"],
-  decoracao:["Flores","Personagens","Displays","Iluminação","Peças decorativas","Vasos","Arranjos","Bolos Fake","Outros"],
-  estrutura:["Painéis","Suportes de painel","Cubos","Estruturas especiais","Outros"],
+  decoracao:["Flores","Personagens","Displays","Iluminação","Peças decorativas","Vasos","Arranjos","Outros"],
+  estrutura:["Suportes de painel","Cubos","Estruturas especiais","Outros"],
   "mesa-posta":["Boleiras","Bandejas baixa","Bandejas alta","Porta-doces","Outros"],
   texteis:["Tapetes","Toalhas","Capas","Outros"],
   kits:["Kits Pré-montados","Kits Festa na Mesa"]
 };
 
-let products = JSON.parse(localStorage.getItem("bellpapellProducts") || "[]");
+let products = [];
+let productObjectUrls = [];
 let adminMode = sessionStorage.getItem("bellpapellAdmin") === "1";
 let editingProductId = null;
 let pendingPhotoData = "";
@@ -317,11 +368,13 @@ let panelPhotos = {"50x50":[],"130ou150":[]};
 let activePanelSize = "50x50";
 let panelDB = null;
 let panelObjectUrls = [];
+let activeCakeType = "simples";
+let cakeObjectUrls = [];
 
 function openPanelDB(){
   return new Promise((resolve,reject)=>{
-    const req=indexedDB.open("BellpapellCatalogoDB",2);
-    req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains("panelPhotos"))db.createObjectStore("panelPhotos",{keyPath:"id"});if(!db.objectStoreNames.contains("cakePhotos"))db.createObjectStore("cakePhotos",{keyPath:"id"});};
+    const req=indexedDB.open("BellpapellCatalogoDB",4);
+    req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains("panelPhotos"))db.createObjectStore("panelPhotos",{keyPath:"id"});if(!db.objectStoreNames.contains("cakePhotos"))db.createObjectStore("cakePhotos",{keyPath:"id"});if(!db.objectStoreNames.contains("products"))db.createObjectStore("products",{keyPath:"id"});};
     req.onsuccess=()=>{panelDB=req.result;resolve(panelDB)};
     req.onerror=()=>reject(req.error);
   });
@@ -361,15 +414,49 @@ function cakeStore(mode="readonly"){return panelDB.transaction("cakePhotos",mode
 function getAllCakePhotos(){return new Promise((resolve,reject)=>{const req=cakeStore().getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)})}
 function putCakePhoto(item){return new Promise((resolve,reject)=>{const req=cakeStore("readwrite").put(item);req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error)})}
 function deleteCakePhotoDB(id){return new Promise((resolve,reject)=>{const req=cakeStore("readwrite").delete(id);req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error)})}
-async function showCakeGallery(){const g=document.getElementById("cakeGallery"),grid=document.getElementById("cakePhotos");if(!g||!grid)return;g.style.display="block";if(!panelDB)await openPanelDB();const photos=await getAllCakePhotos();if(!photos.length){grid.innerHTML='<div class="empty">Nenhuma foto de bolo fake cadastrada ainda.</div>';syncAdminVisibility();return}grid.innerHTML="";for(const x of photos){const url=URL.createObjectURL(x.blob);const card=document.createElement("article");card.className="panel-photo-card";card.innerHTML=`<img src="${url}" alt="Bolo fake"><div class="panel-photo-actions admin-only"><button class="btn-delete">🗑️ Excluir foto</button></div>`;card.querySelector("button").onclick=()=>deleteCakePhoto(x.id);grid.appendChild(card)}syncAdminVisibility()}
+function cakePrice(type){return type==="simples"?30:null}
+function cakeTypeName(type){return type==="simples"?"Bolo Fake Simples":"Bolo Fake Especial"}
+async function showCakeGallery(){const g=document.getElementById("cakeGallery");if(!g)return;g.style.display="block";await showCakeType(activeCakeType);syncAdminVisibility()}
+async function showCakeType(type){activeCakeType=type;document.querySelectorAll("[data-cake-type]").forEach(b=>b.classList.toggle("active",b.dataset.cakeType===type));const grid=document.getElementById("cakePhotos");if(!grid)return;if(!panelDB)await openPanelDB();cakeObjectUrls.forEach(u=>URL.revokeObjectURL(u));cakeObjectUrls=[];let photos=await getAllCakePhotos();photos=photos.filter(x=>(x.type||"simples")===type);if(!photos.length){grid.innerHTML='<div class="empty">Nenhuma foto cadastrada nesta galeria ainda.</div>';syncAdminVisibility();return}const price=cakePrice(type);grid.innerHTML=photos.map((x,i)=>{const url=URL.createObjectURL(x.blob);cakeObjectUrls.push(url);const id=String(x.id);const selected=selection.includes(id);const name=`${cakeTypeName(type)} ${i+1}`;return `<article class="card"><div class="photo" style="position:relative"><button class="favorite" onclick="toggleCake('${id}')">${selected?"♥":"♡"}</button><img src="${url}" alt="${name}" style="width:100%;height:100%;object-fit:cover;border-radius:18px"></div><div class="card-body"><h3>${name}</h3><div class="price">${price===null?"Valor a combinar":money(price)} <span>${price===null?"":"/ locação"}</span></div><div class="card-actions"><button class="btn-select" onclick="toggleCake('${id}')">${selected?"✓ Selecionado":"＋ Adicionar à minha seleção"}</button><div class="admin-only" style="gap:8px"><button class="btn-delete" onclick="deleteCakePhoto('${id}')">🗑️ Excluir foto</button></div></div></div></article>`}).join("");syncAdminVisibility()}
 function hideCakeGallery(){const g=document.getElementById("cakeGallery");if(g)g.style.display="none"}
-function openCakeGallery(){showCakeGallery();const g=document.getElementById("cakeGallery");if(g)g.scrollIntoView({behavior:"smooth",block:"start"})}
+function openCakeGallery(){activeCategory="bolos-fake";document.getElementById("catStatus").textContent="Bolos Fake";document.getElementById("productTitle").textContent="Bolos Fake";document.getElementById("decorSubcats").style.display="none";document.getElementById("panelGallery").style.display="none";document.getElementById("products").style.display="none";showCakeGallery();const g=document.getElementById("cakeGallery");if(g)g.scrollIntoView({behavior:"smooth",block:"start"})}
 function openCakePhotoPicker(){if(!adminMode){adminLogin();return}document.getElementById("cakePhotoInput").click()}
-async function addCakePhotos(event){if(!adminMode)return;const files=[...event.target.files];if(!files.length)return;try{if(!panelDB)await openPanelDB();let added=0;for(const file of files){if(!file.type.startsWith("image/"))continue;await putCakePhoto({id:crypto.randomUUID?crypto.randomUUID():(Date.now()+Math.random()+""),blob:file});added++}await showCakeGallery();toast(added+" foto(s) de bolo fake adicionada(s). 🎂📸")}catch(e){console.error(e);toast("Não foi possível salvar as fotos. Verifique o espaço disponível.")}event.target.value=""}
-async function deleteCakePhoto(id){if(!adminMode)return;if(!confirm("Excluir esta foto de bolo fake do catálogo?"))return;try{await deleteCakePhotoDB(String(id));await showCakeGallery();toast("Foto excluída.")}catch(e){console.error(e);toast("Não foi possível excluir a foto.")}}
-function renderDecorSubcats(){const box=document.getElementById("decorSubcatButtons");if(!box)return;box.innerHTML=(subcategories.decoracao||[]).map(s=>`<button class="cat" onclick="${s==='Bolos Fake'?'openCakeGallery()':`showDecorationProducts('${s.replace(/'/g,"\'")}')`}"><div class="cat-icon">${s==='Bolos Fake'?'🎂':'🎀'}</div><div><strong>${s}</strong><span>${s==='Bolos Fake'?'Ver fotos do acervo':'Ver peças'}</span></div></button>`).join("")}
+async function addCakePhotos(event){if(!adminMode)return;const files=[...event.target.files];if(!files.length)return;try{if(!panelDB)await openPanelDB();let added=0;for(const file of files){if(!file.type.startsWith("image/"))continue;await putCakePhoto({id:"cake-"+(crypto.randomUUID?crypto.randomUUID():(Date.now()+Math.random()+"")),type:activeCakeType,blob:file});added++}await showCakeGallery();toast(added+" foto(s) adicionada(s) em "+cakeTypeName(activeCakeType)+". 🎂📸")}catch(e){console.error(e);toast("Não foi possível salvar as fotos. Verifique o espaço disponível.")}event.target.value=""}
+function toggleCake(id){if(selection.includes(id))selection=selection.filter(x=>x!==id);else selection.push(id);save();showCakeType(activeCakeType);toast(selection.includes(id)?"Bolo adicionado à sua seleção":"Bolo retirado da seleção")}
+async function deleteCakePhoto(id){if(!adminMode)return;if(!confirm("Excluir esta foto de bolo fake do catálogo?"))return;try{await deleteCakePhotoDB(String(id));selection=selection.filter(x=>x!==String(id));save();await showCakeType(activeCakeType);toast("Foto excluída.")}catch(e){console.error(e);toast("Não foi possível excluir a foto.")}}
+function renderSubcats(){
+  const box=document.getElementById("decorSubcatButtons");if(!box)return;
+  const list=subcategories[activeCategory]||[];
+  const available=list.filter(sub=>
+    products.some(p=>p.cat===activeCategory && normalizeText(p.subcat)===normalizeText(sub))
+  );
+  const title=document.getElementById("subcatTitle");
+  const hint=document.getElementById("subcatHint");
+  if(title)title.textContent=catName(activeCategory);
+  if(hint)hint.textContent=available.length?"Escolha uma categoria":"Nenhuma subcategoria com peças cadastradas";
+  box.innerHTML=available.map(sub=>`<button class="cat ${activeSubcategory===sub?"active":""}" onclick="showSubcategoryProducts('${sub.replace(/'/g,"\\'")}')"><div class="cat-icon">${categoryIcon(activeCategory)}</div><div><strong>${escapeHtml(sub)}</strong><span>Ver peças</span></div></button>`).join("");
+}
+function categoryIcon(cat){
+  const c=categories.find(x=>x[0]===cat);
+  return c?c[1]:"🎀";
+}
+function showSubcategoryProducts(sub){
+  activeSubcategory=sub;
+  document.getElementById("catStatus").textContent=sub;
+  document.getElementById("productTitle").textContent=sub;
+  const box=document.getElementById("decorSubcats");
+  if(box){box.style.display="block";renderSubcats()}
+  document.getElementById("panelGallery").style.display="none";
+  document.getElementById("cakeGallery").style.display="none";
+  const productsEl=document.getElementById("products");
+  productsEl.style.display="grid";
+  renderProducts();
+  window.scrollTo({top:productsEl.offsetTop-80,behavior:"smooth"});
+}
+
 
 let activeCategory = "todos";
+let activeSubcategory = "";
 let selection = JSON.parse(localStorage.getItem("bellpapellSelection") || "[]");
 if(adminMode) document.body.classList.add("admin-mode");
 
@@ -377,7 +464,34 @@ function money(v){return v.toLocaleString("pt-BR",{style:"currency",currency:"BR
 function catName(key){return categories.find(c=>c[0]===key)?.[2] || "Acervo"}
 
 function escapeHtml(v){return String(v||"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[c]||c))}
-function saveProducts(){localStorage.setItem("bellpapellProducts",JSON.stringify(products))}
+function productStore(mode="readonly"){return panelDB.transaction("products",mode).objectStore("products")}
+function getAllProducts(){return new Promise((resolve,reject)=>{const req=productStore().getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)})}
+function putProduct(item){return new Promise((resolve,reject)=>{const req=productStore("readwrite").put(item);req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error)})}
+function deleteProductDB(id){return new Promise((resolve,reject)=>{const req=productStore("readwrite").delete(id);req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error)})}
+async function initProductStorage(){
+  if(!panelDB) await openPanelDB();
+  const existing=await getAllProducts();
+  if(existing.length){products=existing;return}
+  const oldRaw=localStorage.getItem("bellpapellProducts");
+  if(!oldRaw){products=[];return}
+  try{
+    const old=JSON.parse(oldRaw)||[];
+    for(const item of old){
+      const migrated={...item};
+      if(migrated.photo && typeof migrated.photo==="string" && migrated.photo.startsWith("data:")){
+        try{migrated.photoBlob=dataUrlToBlob(migrated.photo)}catch(e){}
+        delete migrated.photo;
+      }
+      await putProduct(migrated);
+    }
+    products=await getAllProducts();
+    localStorage.removeItem("bellpapellProducts");
+  }catch(e){
+    console.error("Migração dos produtos não concluída",e);
+    products=await getAllProducts();
+  }
+}
+function saveProducts(){return Promise.all(products.map(p=>putProduct(p)))}
 function adminLogin(){const m=document.getElementById("pinModal");const pin=document.getElementById("adminPin");if(!m||!pin){alert("Área administrativa indisponível nesta versão.");return}pin.value="";m.classList.add("open");setTimeout(()=>pin.focus(),150)}
 function syncAdminVisibility(){updateAdminUI()}
 function updateAdminUI(){
@@ -393,11 +507,131 @@ function adminLogout(){adminMode=false;sessionStorage.removeItem("bellpapellAdmi
 function closePinModal(){document.getElementById("pinModal").classList.remove("open")}
 function populateCategories(){document.getElementById("pCat").innerHTML=categories.filter(c=>c[0]!=="todos").map(c=>`<option value="${c[0]}">${c[2]}</option>`).join("");updateSubcats()}
 function updateSubcats(){const cat=document.getElementById("pCat").value;const list=subcategories[cat]||["Outros"];document.getElementById("pSubcat").innerHTML=list.map(x=>`<option>${x}</option>`).join("")}
-function previewPhoto(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{pendingPhotoData=e.target.result;const img=document.getElementById("photoPreview");img.src=pendingPhotoData;img.style.display="block"};reader.readAsDataURL(file)}
-function openProductModal(id=null){if(!adminMode){adminLogin();return}editingProductId=id;pendingPhotoData="";const p=id?products.find(x=>x.id===id):null;document.getElementById("productModalTitle").textContent=p?"Editar peça 🎀":"Cadastrar peça 🎀";document.getElementById("pName").value=p?.name||"";document.getElementById("pPrice").value=p?.price??"";document.getElementById("pCat").value=p?.cat||"moveis";updateSubcats();document.getElementById("pSubcat").value=p?.subcat||document.getElementById("pSubcat").options[0]?.value||"";document.getElementById("pPhoto").value="";const img=document.getElementById("photoPreview");if(p?.photo){img.src=p.photo;img.style.display="block";pendingPhotoData=p.photo}else{img.removeAttribute("src");img.style.display="none"}document.getElementById("productModal").classList.add("open")}
+let cropImage=null,cropObjectUrl="",cropX=0,cropY=0,cropDragging=false,cropLastX=0,cropLastY=0,cropRect={x:30,y:30,w:300,h:300},cropAction="move",cropHandle="";
+let cropTarget="main", variationDraftName="";
+let pendingVariations=[];
+function previewPhoto(event){
+  const file=event.target.files[0];if(!file)return;
+  cropTarget="main";variationDraftName="";openCropEditor(file);
+}
+function previewVariationPhoto(event){
+  const file=event.target.files[0];
+  const name=document.getElementById("variationName").value.trim();
+  if(!file){return}
+  if(!name){toast("Informe primeiro o nome da cor/variação.");event.target.value="";return}
+  cropTarget="variation";variationDraftName=name;openCropEditor(file);
+}
+function openCropEditor(file){
+  if(cropObjectUrl)URL.revokeObjectURL(cropObjectUrl);
+  cropObjectUrl=URL.createObjectURL(file); cropImage=new Image();
+  cropImage.onload=()=>{document.getElementById("cropZoom").value=1;cropX=0;cropY=0;cropRect={x:30,y:30,w:300,h:300};drawCrop();document.getElementById("cropModal").classList.add("open")};
+  cropImage.src=cropObjectUrl;
+}
+function cropImageGeometry(){
+  const zoom=Number(document.getElementById("cropZoom")?.value||1), base=Math.max(360/cropImage.naturalWidth,360/cropImage.naturalHeight), scale=base*zoom;
+  return {scale,w:cropImage.naturalWidth*scale,h:cropImage.naturalHeight*scale,x:(360-cropImage.naturalWidth*scale)/2+cropX,y:(360-cropImage.naturalHeight*scale)/2+cropY};
+}
+function drawCrop(){
+  const c=document.getElementById("cropCanvas");if(!c||!cropImage)return;const ctx=c.getContext("2d");ctx.clearRect(0,0,360,360);ctx.fillStyle="#eef1f4";ctx.fillRect(0,0,360,360);
+  const g=cropImageGeometry();ctx.drawImage(cropImage,g.x,g.y,g.w,g.h);
+  const r=cropRect;ctx.save();ctx.fillStyle="rgba(0,0,0,.42)";ctx.beginPath();ctx.rect(0,0,360,360);ctx.rect(r.x,r.y,r.w,r.h);ctx.fill("evenodd");
+  ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.strokeRect(r.x,r.y,r.w,r.h);
+  ctx.strokeStyle="rgba(255,255,255,.55)";ctx.lineWidth=1;for(let i=1;i<3;i++){ctx.beginPath();ctx.moveTo(r.x+r.w*i/3,r.y);ctx.lineTo(r.x+r.w*i/3,r.y+r.h);ctx.stroke();ctx.beginPath();ctx.moveTo(r.x,r.y+r.h*i/3);ctx.lineTo(r.x+r.w,r.y+r.h*i/3);ctx.stroke();}
+  const hs=14;ctx.fillStyle="#fff";[[r.x,r.y],[r.x+r.w,r.y],[r.x,r.y+r.h],[r.x+r.w,r.y+r.h]].forEach(([x,y])=>{ctx.fillRect(x-hs/2,y-hs/2,hs,hs)});ctx.restore();
+}
+function cropHitHandle(x,y){const r=cropRect,hs=24;const pts={nw:[r.x,r.y],ne:[r.x+r.w,r.y],sw:[r.x,r.y+r.h],se:[r.x+r.w,r.y+r.h]};for(const [k,[px,py]] of Object.entries(pts))if(Math.abs(x-px)<=hs&&Math.abs(y-py)<=hs)return k;return ""}
+function cropInside(x,y){const r=cropRect;return x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h}
+function canvasPoint(e){const c=document.getElementById("cropCanvas"),b=c.getBoundingClientRect();return {x:(e.clientX-b.left)*360/b.width,y:(e.clientY-b.top)*360/b.height}}
+function clampCropRect(){const min=70,r=cropRect;r.x=Math.max(0,Math.min(360-r.w,r.x));r.y=Math.max(0,Math.min(360-r.h,r.y));r.w=Math.max(min,Math.min(360-r.x,r.w));r.h=Math.max(min,Math.min(360-r.y,r.h))}
+function clampImage(){const g=cropImageGeometry(),r=cropRect;const minX=r.x+r.w-g.w,maxX=r.x,minY=r.y+r.h-g.h,maxY=r.y;cropX+=0;g.x=Math.max(minX,Math.min(maxX,g.x));g.y=Math.max(minY,Math.min(maxY,g.y));const base=Math.max(360/cropImage.naturalWidth,360/cropImage.naturalHeight),zoom=Number(document.getElementById("cropZoom").value||1),cx=(360-cropImage.naturalWidth*base*zoom)/2,cy=(360-cropImage.naturalHeight*base*zoom)/2;cropX=g.x-cx;cropY=g.y-cy}
+function cancelCrop(){document.getElementById("cropModal")?.classList.remove("open");document.getElementById("pPhoto").value="";if(cropObjectUrl){URL.revokeObjectURL(cropObjectUrl);cropObjectUrl=""}cropImage=null}
+function applyCrop(){
+  if(!cropImage)return;const g=cropImageGeometry(),r=cropRect,scale=g.scale;
+  const sx=Math.max(0,(r.x-g.x)/scale),sy=Math.max(0,(r.y-g.y)/scale),sw=Math.min(cropImage.naturalWidth-sx,r.w/scale),sh=Math.min(cropImage.naturalHeight-sy,r.h/scale);
+  if(sw<2||sh<2){toast("Escolha uma área maior para o corte.");return}
+  const max=1200,f=Math.min(max/sw,max/sh),out=document.createElement("canvas");out.width=Math.round(sw*f);out.height=Math.round(sh*f);out.getContext("2d").drawImage(cropImage,sx,sy,sw,sh,0,0,out.width,out.height);
+  out.toBlob(blob=>{
+    if(!blob)return;
+    if(cropTarget==="variation"){
+      pendingVariations.push({name:variationDraftName,blob});
+      renderVariationList();
+      document.getElementById("variationName").value="";
+      document.getElementById("variationPhoto").value="";
+      toast("Cor adicionada. Você pode incluir outra. 🎨📷");
+    }else{
+      pendingPhotoData=blob;
+      const url=URL.createObjectURL(blob),img=document.getElementById("photoPreview");
+      img.src=url;img.style.display="block";
+      toast("Corte aplicado. Agora é só salvar a peça. ✂️📷");
+    }
+    document.getElementById("cropModal").classList.remove("open");
+    if(cropObjectUrl){URL.revokeObjectURL(cropObjectUrl);cropObjectUrl=""}
+    cropImage=null;
+  },"image/jpeg",.9)
+}
+function initCropEvents(){
+  const c=document.getElementById("cropCanvas"),z=document.getElementById("cropZoom");if(!c||!z)return;
+  c.onpointerdown=e=>{const p=canvasPoint(e);cropHandle=cropHitHandle(p.x,p.y);cropAction=cropHandle?"resize":(cropInside(p.x,p.y)?"move":"pan");cropDragging=true;cropLastX=p.x;cropLastY=p.y;c.setPointerCapture?.(e.pointerId)};
+  c.onpointermove=e=>{if(!cropDragging)return;const p=canvasPoint(e),dx=p.x-cropLastX,dy=p.y-cropLastY;cropLastX=p.x;cropLastY=p.y;
+    if(cropAction==="pan"){cropX+=dx;cropY+=dy;clampImage()}
+    else if(cropAction==="move"){cropRect.x+=dx;cropRect.y+=dy;clampCropRect();clampImage()}
+    else {const r=cropRect,min=70;if(cropHandle==="nw"){r.x+=dx;r.y+=dy;r.w-=dx;r.h-=dy}else if(cropHandle==="ne"){r.y+=dy;r.w+=dx;r.h-=dy}else if(cropHandle==="sw"){r.x+=dx;r.w-=dx;r.h+=dy}else if(cropHandle==="se"){r.w+=dx;r.h+=dy}if(r.w<min){if(cropHandle.includes("w"))r.x=r.x+r.w-min;r.w=min}if(r.h<min){if(cropHandle.includes("n"))r.y=r.y+r.h-min;r.h=min}clampCropRect();clampImage()}
+    drawCrop();
+  };
+  c.onpointerup=c.onpointercancel=()=>{cropDragging=false;cropHandle=""};
+  z.oninput=()=>{clampImage();drawCrop()};
+}
+
+function renderVariationList(){
+  const el=document.getElementById("variationList");if(!el)return;
+  el.innerHTML=pendingVariations.map((v,i)=>{
+    const url=URL.createObjectURL(v.blob);
+    return `<div class="variation-row">
+      <img src="${url}" alt="">
+      <div><strong>${escapeHtml(v.name)}</strong><small>Variação ${i+1}</small></div>
+      <button type="button" class="btn-delete" onclick="removeVariation(${i})">🗑️</button>
+    </div>`;
+  }).join("");
+}
+function removeVariation(i){pendingVariations.splice(i,1);renderVariationList()}
+function addVariationFromFields(){
+  const input=document.getElementById("variationPhoto");
+  const name=document.getElementById("variationName").value.trim();
+  if(!name){toast("Informe o nome da cor/variação.");return}
+  if(!input.files[0]){toast("Escolha a foto dessa cor.");return}
+  previewVariationPhoto({target:input});
+}
+function selectionKey(productId,variantIndex=null){
+  return variantIndex===null ? String(productId) : String(productId)+"::v"+variantIndex;
+}
+function selectionHas(productId,variantIndex=null){return selection.some(x=>String(x)===selectionKey(productId,variantIndex))}
+async function openProductModal(id=null){if(!adminMode){adminLogin();return}editingProductId=id;pendingPhotoData="";pendingVariations=[];renderVariationList();const p=id?products.find(x=>String(x.id)===String(id)):null;document.getElementById("productModalTitle").textContent=p?"Editar peça 🎀":"Cadastrar peça 🎀";document.getElementById("pName").value=p?.name||"";document.getElementById("pPrice").value=p?.price??"";document.getElementById("pCat").value=p?.cat||"moveis";updateSubcats();document.getElementById("pSubcat").value=p?.subcat||document.getElementById("pSubcat").options[0]?.value||"";document.getElementById("pPhoto").value="";const img=document.getElementById("photoPreview");if(p?.photoBlob){const url=URL.createObjectURL(p.photoBlob);img.src=url;img.style.display="block"}else if(p?.photo){img.src=p.photo;img.style.display="block"}else{img.removeAttribute("src");img.style.display="none"}document.getElementById("productModal").classList.add("open")}
 function closeProductModal(){document.getElementById("productModal").classList.remove("open");editingProductId=null}
-function saveProduct(){const name=document.getElementById("pName").value.trim();const price=Number(document.getElementById("pPrice").value);const cat=document.getElementById("pCat").value;const subcat=document.getElementById("pSubcat").value;if(!name){toast("Informe o nome da peça.");return}if(!Number.isFinite(price)||price<0){toast("Informe um valor válido.");return}if(editingProductId){const p=products.find(x=>x.id===editingProductId);if(!p)return;p.name=name;p.price=price;p.cat=cat;p.subcat=subcat;if(pendingPhotoData)p.photo=pendingPhotoData}else{products.push({id:Date.now(),name,price,cat,subcat,photo:pendingPhotoData||""})}saveProducts();closeProductModal();renderProducts();toast(editingProductId?"Peça atualizada.":"Peça cadastrada.")}
-function deleteProduct(id){if(!adminMode)return;const p=products.find(x=>x.id===id);if(!p)return;if(!confirm(`Excluir \"${p.name}\" do catálogo?`))return;products=products.filter(x=>x.id!==id);selection=selection.filter(x=>x!==id);saveProducts();localStorage.setItem("bellpapellSelection",JSON.stringify(selection));renderProducts();toast("Peça excluída.")}
+async function saveProduct(){
+  const name=document.getElementById("pName").value.trim();
+  const price=Number(document.getElementById("pPrice").value);
+  const cat=document.getElementById("pCat").value;
+  const subcat=document.getElementById("pSubcat").value;
+  if(!name){toast("Informe o nome da peça.");return}
+  if(!Number.isFinite(price)||price<0){toast("Informe um valor válido.");return}
+  const id=editingProductId;
+  let p=id?products.find(x=>String(x.id)===String(id)):null;
+  if(id&&!p)return;
+  const item=p||{id:Date.now(),name:"",price:0,cat:"",subcat:""};
+  item.name=name;item.price=price;item.cat=cat;item.subcat=subcat;
+  if(pendingPhotoData instanceof Blob){item.photoBlob=pendingPhotoData;delete item.photo}
+  if(!p && pendingVariations.length){
+    item.variants=pendingVariations.map(v=>({name:v.name,blob:v.blob}));
+    if(!(item.photoBlob instanceof Blob)){item.photoBlob=item.variants[0].blob}
+  }
+  try{
+    await putProduct(item);
+    if(!p)products.push(item);
+    else{const idx=products.findIndex(x=>String(x.id)===String(id));products[idx]=item}
+    closeProductModal();renderProducts();toast(id?"Peça atualizada.":"Peça cadastrada.");
+  }catch(e){console.error(e);toast("Não foi possível salvar a peça. Verifique o espaço disponível.")}
+}
+async function deleteProduct(id){if(!adminMode)return;const p=products.find(x=>String(x.id)===String(id));if(!p)return;if(!confirm(`Excluir \"${p.name}\" do catálogo?`))return;try{await deleteProductDB(id);products=products.filter(x=>String(x.id)!==String(id));selection=selection.filter(x=>String(x)!==String(id));save();renderProducts();toast("Peça excluída.")}catch(e){console.error(e);toast("Não foi possível excluir a peça.")}}
 
 function renderCategories(){
   const el=document.getElementById("categories");
@@ -409,61 +643,75 @@ function renderCategories(){
 }
 function setCategory(cat){
   activeCategory=cat;
+  activeSubcategory="";
   document.getElementById("catStatus").textContent=cat==="todos"?"Todos os itens":catName(cat);
   document.getElementById("productTitle").textContent=cat==="todos"?"Destaques do acervo":catName(cat);
   hideCakeGallery();
   const decorSub=document.getElementById("decorSubcats");
-  if(decorSub){decorSub.style.display=cat==="decoracao"?"block":"none";if(cat==="decoracao")renderDecorSubcats()}
+  const hasSubcats=Array.isArray(subcategories[cat]) && subcategories[cat].length>0;
+  if(decorSub){
+    decorSub.style.display=hasSubcats?"block":"none";
+    if(hasSubcats)renderSubcats();
+  }
   const gallery=document.getElementById("panelGallery");
+  const cakeGallery=document.getElementById("cakeGallery");
   const productsEl=document.getElementById("products");
-  if(cat==="estrutura"){gallery.style.display="block";productsEl.style.display="none";showPanelGallery()}
-  else{gallery.style.display="none";productsEl.style.display="grid";renderProducts()}
-  const target=cat==="estrutura"?gallery:productsEl;
+  if(cat==="paineis"){
+    gallery.style.display="block";productsEl.style.display="none";cakeGallery.style.display="none";
+    loadPanelPriceInputs();showPanelGallery();
+  }else if(cat==="bolos-fake"){
+    gallery.style.display="none";productsEl.style.display="none";cakeGallery.style.display="block";
+    showCakeGallery();
+  }else{
+    gallery.style.display="none";cakeGallery.style.display="none";productsEl.style.display="grid";renderProducts();
+  }
+  const target=cat==="paineis"?gallery:(cat==="bolos-fake"?cakeGallery:productsEl);
   window.scrollTo({top:target.offsetTop-80,behavior:"smooth"});
 }
 
+let panelPrices = JSON.parse(localStorage.getItem("bellpapellPanelPrices") || "{}") || {};
 function normalizeText(text){
   return String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
+function loadPanelPriceInputs(){const a=document.getElementById("panelPrice50"),b=document.getElementById("panelPrice130");if(a)a.value=panelPrices["50x50"]??"";if(b)b.value=panelPrices["130ou150"]??""}
+function savePanelPrices(){if(!adminMode){adminLogin();return}const a=Number(document.getElementById("panelPrice50").value),b=Number(document.getElementById("panelPrice130").value);if(!Number.isFinite(a)||a<0||!Number.isFinite(b)||b<0){toast("Informe os dois valores corretamente.");return}panelPrices={"50x50":a,"130ou150":b};localStorage.setItem("bellpapellPanelPrices",JSON.stringify(panelPrices));showPanelGallery();toast("Valores dos painéis salvos. 💗")}
+function panelPrice(size){const v=panelPrices[size];return Number.isFinite(Number(v))?Number(v):null}
+function panelTypeName(size){return size==="50x50"?"Painel 50 × 50 cm":"Painel 130 cm ou 150 cm"}
+function togglePanel(id){const key="panel:"+String(id);if(selection.includes(key))selection=selection.filter(x=>String(x)!==key);else selection.push(key);save();showPanelGallery();toast(selection.includes(key)?"Painel adicionado à sua seleção":"Painel retirado da seleção")}
+function getPanelSelectionItem(id){const key=String(id).replace(/^panel:/,"");const size=(panelPhotos["50x50"]||[]).find(x=>String(x.id)===key)?"50x50":"130ou150";const item=(panelPhotos[size]||[]).find(x=>String(x.id)===key);if(!item)return null;return {id:"panel:"+key,name:panelTypeName(size),price:panelPrice(size),panel:true}}
 function openPanelPhotoPicker(size){if(!adminMode){adminLogin();return}activePanelSize=size;const input=document.getElementById("panelPhotoInput");input.dataset.size=size;input.value="";input.click()}
 async function addPanelPhotos(event){
   if(!adminMode)return;
   const size=event.target.dataset.size||activePanelSize;
-  const files=[...event.target.files];
-  if(!files.length)return;
+  const files=[...event.target.files];if(!files.length)return;
   const btns=document.querySelectorAll('.admin-btn.primary');btns.forEach(b=>b.disabled=true);
   let added=0;
-  try{
-    for(const file of files){
-      if(!file.type.startsWith('image/'))continue;
-      await putPanelPhoto({id:crypto.randomUUID?crypto.randomUUID():(Date.now()+Math.random()+""),size,blob:file});
-      added++;
-    }
-    await refreshPanelPhotos();
-    toast(added+" foto(s) adicionada(s). Pode continuar adicionando quantas precisar. 📸");
+  try{for(const file of files){if(!file.type.startsWith('image/'))continue;await putPanelPhoto({id:crypto.randomUUID?crypto.randomUUID():(Date.now()+Math.random()+""),size,blob:file});added++}
+    await refreshPanelPhotos();toast(added+" foto(s) adicionada(s). Pode continuar adicionando quantas precisar. 📸");
   }catch(e){console.error(e);toast("Não foi possível salvar todas as fotos. O armazenamento do aparelho pode estar cheio.")}
   finally{btns.forEach(b=>b.disabled=false);event.target.value=""}
 }
-async function deletePanelPhoto(size,id){if(!adminMode)return;if(!confirm("Excluir esta foto do catálogo?"))return;try{await deletePanelPhotoDB(String(id));await refreshPanelPhotos();toast("Foto excluída.")}catch(e){console.error(e);toast("Não foi possível excluir a foto.")}}
+async function deletePanelPhoto(size,id){if(!adminMode)return;if(!confirm("Excluir esta foto do catálogo?"))return;try{await deletePanelPhotoDB(String(id));selection=selection.filter(x=>String(x)!=="panel:"+String(id));save();await refreshPanelPhotos();toast("Foto excluída.")}catch(e){console.error(e);toast("Não foi possível excluir a foto.")}}
 function showPanelSize(size){activePanelSize=size;document.querySelectorAll(".panel-size").forEach(b=>b.classList.toggle("active",b.dataset.size===size));showPanelGallery()}
 async function showPanelGallery(){
-  const el=document.getElementById("panelPhotos");if(!el)return;
+  const el=document.getElementById("panelPhotos");if(!el)return;loadPanelPriceInputs();
   panelObjectUrls.forEach(u=>URL.revokeObjectURL(u));panelObjectUrls=[];
-  const list=panelPhotos[activePanelSize]||[];
-  if(!list.length){el.innerHTML='<div class="empty">Nenhuma foto cadastrada neste tamanho.</div>';return}
+  const list=panelPhotos[activePanelSize]||[];const price=panelPrice(activePanelSize);
+  if(!list.length){el.innerHTML='<div class="empty">Nenhuma foto cadastrada neste tamanho.</div>';syncAdminVisibility();return}
   const cards=[];
-  for(const x of list){
-    const url=URL.createObjectURL(x.blob);panelObjectUrls.push(url);
-    cards.push(`<article class="panel-photo-card"><img src="${url}" alt="Painel"><div class="panel-photo-actions admin-only"><button class="btn-delete" onclick="deletePanelPhoto('${activePanelSize}','${x.id}')">🗑️ Excluir foto</button></div></article>`);
-  }
-  el.innerHTML=cards.join("");
+  for(const [i,x] of list.entries()){const url=URL.createObjectURL(x.blob);panelObjectUrls.push(url);const key="panel:"+String(x.id);const selected=selection.includes(key);cards.push(`<article class="card"><div class="photo" style="position:relative"><button class="favorite" onclick="togglePanel('${String(x.id)}')">${selected?"♥":"♡"}</button><img src="${url}" alt="${escapeHtml(panelTypeName(activePanelSize))}" style="width:100%;height:100%;object-fit:cover;border-radius:18px"></div><div class="card-body"><h3>${escapeHtml(panelTypeName(activePanelSize))} ${i+1}</h3><div class="price">${price===null?"Valor a definir":money(price)}</div><div class="card-actions"><button class="btn-select" onclick="togglePanel('${String(x.id)}')">${selected?"✓ Na minha seleção":"＋ Adicionar à minha seleção"}</button><div class="admin-only" style="gap:8px"><button class="btn-delete" onclick="deletePanelPhoto('${activePanelSize}','${String(x.id)}')">🗑️ Excluir foto</button></div></div></div></article>`)}
+  el.innerHTML=cards.join("");syncAdminVisibility();
 }
-function renderProducts(){
+
+async function renderProducts(){
   const input=document.getElementById("search");
   const term=normalizeText(input ? input.value : "");
+  productObjectUrls.forEach(u=>URL.revokeObjectURL(u));productObjectUrls=[];
   const filtered=products.filter(p=>{
-    const searchable=normalizeText(p.name+" "+catName(p.cat)+" "+(p.label||"")+" "+(p.desc||""));
-    return (activeCategory==="todos" || p.cat===activeCategory) && (!term || searchable.includes(term));
+    const searchable=normalizeText(p.name+" "+catName(p.cat)+" "+(p.label||"")+" "+(p.desc||"")+" "+(p.variants||[]).map(v=>v.name).join(" "));
+    const catOk = activeCategory==="todos" || p.cat===activeCategory;
+    const subOk = !activeSubcategory || normalizeText(p.subcat)===normalizeText(activeSubcategory);
+    return catOk && subOk && (!term || searchable.includes(term));
   });
   document.getElementById("productCount").textContent=filtered.length+" item(ns)";
   const el=document.getElementById("products");
@@ -471,24 +719,60 @@ function renderProducts(){
     el.innerHTML='<div class="empty">Nenhuma peça encontrada. Tente outro nome ou categoria. 🎀</div>';
     return;
   }
-  el.innerHTML=filtered.map(p=>`
-    <article class="card">
+  el.innerHTML=filtered.map(p=>{
+    const vars=Array.isArray(p.variants)&&p.variants.length?p.variants:null;
+    const first=vars?vars[0]:null;
+    const photo=first?.blob||p.photoBlob||p.photo||"";
+    const url=photo instanceof Blob
+      ? (productObjectUrls.push(URL.createObjectURL(photo)),productObjectUrls[productObjectUrls.length-1])
+      : String(photo);
+    const chosenIndex=vars?0:null;
+    return `<article class="card" data-product-card="${p.id}">
       <div class="photo" style="position:relative">
-        <button class="favorite" onclick="toggle(${p.id})">${selection.includes(p.id)?"♥":"♡"}</button>
-        ${p.photo ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:18px">` : `<div class="photo-label">📷<br>Foto da peça</div>`}
+        <button class="favorite" onclick="toggle('${selectionKey(p.id,chosenIndex)}')">${selectionHas(p.id,chosenIndex)?"♥":"♡"}</button>
+        ${photo ? `<img id="prod-img-${p.id}" src="${url}" alt="${escapeHtml(p.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:18px">` : `<div class="photo-label">📷<br>Foto da peça</div>`}
       </div>
       <div class="card-body">
         <h3>${escapeHtml(p.name)}</h3>
         <div class="price">${money(Number(p.price)||0)} <span>/ locação</span></div>
+        ${vars ? `<div class="variant-picker"><span>🎨 Escolha a cor:</span><div class="variant-buttons">${vars.map((v,i)=>`<button type="button" class="variant-btn ${i===0?"active":""}" onclick="chooseVariant(${p.id},${i})">${escapeHtml(v.name)}</button>`).join("")}</div></div>` : ""}
         <div class="card-actions">
-          <button class="btn-select" onclick="toggle(${p.id})">${selection.includes(p.id)?"✓ Selecionada":"＋ Adicionar à minha seleção"}</button>
+          <button class="btn-select" id="select-${p.id}">${selectionHas(p.id,chosenIndex)?"✓ Selecionada":"＋ Adicionar à minha seleção"}</button>
           <div class="admin-only" style="gap:8px">
             <button class="btn-edit" onclick="openProductModal(${p.id})">✏️ Editar</button>
             <button class="btn-delete" onclick="deleteProduct(${p.id})">🗑️ Excluir</button>
           </div>
         </div>
       </div>
-    </article>`).join("");
+    </article>`;
+  }).join("");
+  filtered.forEach(p=>{
+    const vars=Array.isArray(p.variants)&&p.variants.length?p.variants:null;
+    const idx=0;
+    const btn=document.getElementById("select-"+p.id);
+    if(btn)btn.onclick=()=>toggle(selectionKey(p.id,vars?idx:null));
+  });
+}
+function chooseVariant(productId,index){
+  const p=products.find(x=>String(x.id)===String(productId));if(!p||!p.variants?.[index])return;
+  const card=document.querySelector(`[data-product-card="${productId}"]`);if(!card)return;
+  const img=card.querySelector(`#prod-img-${productId}`);
+  if(img){
+    const url=URL.createObjectURL(p.variants[index].blob);
+    productObjectUrls.push(url);img.src=url;
+  }
+  card.querySelectorAll(".variant-btn").forEach((b,i)=>b.classList.toggle("active",i===index));
+  const oldKeyPrefix=String(productId)+"::v";
+  const selectedOld=selection.find(x=>String(x).startsWith(oldKeyPrefix));
+  if(selectedOld)selection=selection.filter(x=>String(x)!==selectedOld);
+  const btn=card.querySelector(".btn-select");
+  if(btn){
+    btn.onclick=()=>toggle(selectionKey(productId,index));
+    btn.textContent=selectionHas(productId,index)?"✓ Selecionada":"＋ Adicionar à minha seleção";
+  }
+  const fav=card.querySelector(".favorite");
+  if(fav){fav.onclick=()=>toggle(selectionKey(productId,index));fav.textContent=selectionHas(productId,index)?"♥":"♡"}
+  card.dataset.selectedVariant=index;
 }
 
 function toggle(id){
@@ -502,33 +786,31 @@ function save(){
   localStorage.setItem("bellpapellSelection",JSON.stringify(selection));
   document.getElementById("count").textContent=selection.length;
 }
-function openSelection(){
+async function getCakeItem(id){if(!panelDB)await openPanelDB();const all=await getAllCakePhotos();const x=all.find(v=>String(v.id)===String(id));if(!x)return null;const type=x.type||"simples";return {id:String(x.id),name:cakeTypeName(type),price:cakePrice(type),type,blob:x.blob}}
+function getSelectionProduct(id){return products.find(x=>String(x.id)===String(id))||null}
+async function openSelection(){
   const el=document.getElementById("selectionList");
-  if(!selection.length){
-    el.innerHTML='<div class="empty">Sua seleção está vazia.<br>Escolha algumas peças no acervo. 🎀</div>';
-  }else{
-    el.innerHTML=selection.map(id=>{
-      const p=products.find(x=>x.id===id);
-      return `<div class="sel-item">
-        <div class="sel-thumb">📸</div>
-        <div class="sel-info"><strong>${p.name}</strong><small>${money(p.price)} / locação</small></div>
-        <button class="remove" onclick="toggle(${p.id});openSelection()">Remover</button>
-      </div>`;
-    }).join("");
+  if(!selection.length){el.innerHTML='<div class="empty">Sua seleção está vazia.<br>Escolha algumas peças no acervo. 🎀</div>';}
+  else{
+    const items=[];
+    for(const id of selection){const p=getSelectionProduct(id);if(p)items.push(p);else{const c=await getCakeItem(id);if(c)items.push(c)}}
+    el.innerHTML=items.map(p=>`<div class="sel-item"><div class="sel-thumb">📸</div><div class="sel-info"><strong>${escapeHtml(p.name)}</strong><small>${p.price===null?"Valor a combinar":money(p.price)}${p.price===null?"":" / locação"}</small></div><button class="remove" onclick="removeFromSelection('${String(p.id).replace(/'/g,"\'")}');openSelection()">Remover</button></div>`).join("");
   }
-  document.getElementById("totalItems").textContent=selection.length;
-  document.getElementById("modal").classList.add("open");
+  document.getElementById("totalItems").textContent=selection.length;document.getElementById("modal").classList.add("open");
 }
+function removeFromSelection(id){selection=selection.filter(x=>String(x)!==String(id));save();renderProducts();if(document.getElementById("cakeGallery").style.display!=="none")showCakeType(activeCakeType)}
 function closeSelection(){document.getElementById("modal").classList.remove("open")}
-function askOne(id){
-  const p=products.find(x=>x.id===id);
-  const msg=`Olá, Bellpapell! 🎀%0A%0ATenho interesse na peça:%0A• ${p.name}%0A• Valor informado no catálogo: ${money(p.price)}%0A%0AGostaria de consultar a disponibilidade e fazer um orçamento.`;
+async function askOne(id){
+  const p=getSelectionProduct(id);
+  if(!p){toast("Use a seleção para consultar este item.");return}
+  const msg=`Olá, Bellpapell! 🎀%0A%0ATenho interesse na peça:%0A• ${encodeURIComponent(p.name)}%0A• Valor informado no catálogo: ${encodeURIComponent(money(p.price))}%0A%0AGostaria de consultar a disponibilidade e fazer um orçamento.`;
   window.open(`https://wa.me/${WHATSAPP}?text=${msg}`,"_blank");
 }
-function sendWhatsApp(){
+async function sendWhatsApp(){
   if(!selection.length){toast("Adicione pelo menos uma peça.");return;}
-  const lines=selection.map(id=>{const p=products.find(x=>x.id===id);return `• ${p.name} - ${money(p.price)}`}).join("%0A");
-  const msg=`Olá, Bellpapell! 🎀%0A%0AGostaria de consultar estas peças:%0A${lines}%0A%0AGostaria de verificar disponibilidade para minha data e receber um orçamento.`;
+  const lines=[];
+  for(const id of selection){const p=getSelectionProduct(id);if(p)lines.push(`• ${p.name} - ${money(p.price)}`);else{const c=await getCakeItem(id);if(c)lines.push(`• ${c.name} - ${c.price===null?"Valor a combinar":money(c.price)}`)}}
+  const msg=`Olá, Bellpapell! 🎀%0A%0AGostaria de consultar estas peças:%0A${encodeURIComponent(lines.join("\n"))}%0A%0AGostaria de verificar disponibilidade para minha data e receber um orçamento.`;
   window.open(`https://wa.me/${WHATSAPP}?text=${msg}`,"_blank");
 }
 let toastTimer;
@@ -536,13 +818,21 @@ function toast(t){
   const el=document.getElementById("toast");el.textContent=t;el.classList.add("show");
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove("show"),1800);
 }
-populateCategories();
+populateCategories();initCropEvents();
 renderCategories();
-renderDecorSubcats();
+renderSubcats();
 save();
-renderProducts();
 updateAdminUI();
-initPanelStorage().catch(e=>console.error("Falha ao iniciar armazenamento das fotos",e));
+(async function initCatalogStorage(){
+  try{
+    await initProductStorage();
+    await renderProducts();
+    await initPanelStorage();
+  }catch(e){
+    console.error("Falha ao iniciar armazenamento do catálogo",e);
+    toast("Não foi possível carregar o acervo. Recarregue o catálogo.");
+  }
+})();
 
 // Eventos da área administrativa. O botão também funciona em arquivos abertos
 // diretamente pelo Chrome (content://), sem depender do onclick inline.
@@ -572,36 +862,6 @@ if(adminPin) adminPin.addEventListener("keydown", function(e){
   input.addEventListener("input", function(){
     renderProducts();
   });
-})();
-</script>
-
-<script>
-// PWA: instalação no Android/Chrome
-(function(){
-  let deferredPrompt = null;
-  const btn = document.getElementById('installAppBtn');
-  if(!btn) return;
-  window.addEventListener('beforeinstallprompt', function(e){
-    e.preventDefault();
-    deferredPrompt = e;
-    btn.classList.add('show');
-  });
-  btn.addEventListener('click', async function(){
-    if(!deferredPrompt) return;
-    deferredPrompt.prompt();
-    try { await deferredPrompt.userChoice; } catch(e) {}
-    deferredPrompt = null;
-    btn.classList.remove('show');
-  });
-  window.addEventListener('appinstalled', function(){
-    deferredPrompt = null;
-    btn.classList.remove('show');
-  });
-  if('serviceWorker' in navigator && location.protocol !== 'file:') {
-    window.addEventListener('load', function(){
-      navigator.serviceWorker.register('./sw.js').catch(function(err){ console.warn('PWA SW:', err); });
-    });
-  }
 })();
 </script>
 </body>
