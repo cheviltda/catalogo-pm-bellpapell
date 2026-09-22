@@ -355,6 +355,7 @@ button{min-height:44px}
 
   <div class="admin-bar" id="adminBar">
     <button class="admin-btn" id="btnAdmin">⚙️ Área administrativa</button>
+    <button class="admin-btn admin-only" id="btnTestSupabase" style="display:none">🔗 Testar Ponte</button><button class="admin-btn admin-only" id="btnSyncAllSupabase" style="display:none">🔄 Sincronizar tudo</button>
     <button class="admin-btn primary admin-only" onclick="openProductModal()">＋ Cadastrar peça</button>
     <button class="admin-btn admin-only" onclick="adminLogout()">Sair do administrador</button>
   </div>
@@ -598,6 +599,7 @@ function productStore(mode="readonly"){return panelDB.transaction("products",mod
 function getAllProducts(){return new Promise((resolve,reject)=>{const req=productStore().getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)})}
 function putProduct(item){return new Promise((resolve,reject)=>{const req=productStore("readwrite").put(item);req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error)})}
 function deleteProductDB(id){return new Promise((resolve,reject)=>{const req=productStore("readwrite").delete(id);req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error)})}
+
 async function initProductStorage(){
   if(!panelDB) await openPanelDB();
   const existing=await getAllProducts();
@@ -870,6 +872,7 @@ async function renderProducts(){
           <button class="btn-select" id="select-${p.id}">${selectionHas(p.id,chosenIndex)?"✓ Selecionada":"＋ Adicionar à minha seleção"}</button>
           <div class="admin-only" style="gap:8px">
             <button class="btn-edit" onclick="openProductModal(${p.id})">✏️ Editar</button>
+            <button class="btn-edit" onclick="enviarPecaPonte(${p.id})">🔗 Enviar à ponte</button>
             <button class="btn-delete" onclick="deleteProduct(${p.id})">🗑️ Excluir</button>
           </div>
         </div>
@@ -993,6 +996,138 @@ if(adminPin) adminPin.addEventListener("keydown", function(e){
     renderProducts();
   });
 })();
+</script>
+
+<script>
+// PONTE SUPABASE V7 - SOMENTE NA CÓPIA DE TESTE.
+// Usa o mesmo IndexedDB do catálogo porque esta página deve ser colocada
+// dentro do MESMO repositório GitHub Pages, em uma pasta /teste/.
+const PM_SUPABASE_URL = 'https://lkvqurdokdkcjhazscvv.supabase.co';
+const PM_SUPABASE_KEY = 'sb_publishable_oNEz5f1BERX0BJcF4iOAdA_r0-cZAgT';
+const PM_SUPABASE_TABLE = 'acervo';
+const PM_SUPABASE_REST = PM_SUPABASE_URL + '/rest/v1/' + PM_SUPABASE_TABLE;
+
+function supabaseHeaders(extra={}){
+  return Object.assign({
+    'apikey': PM_SUPABASE_KEY,
+    'Authorization': 'Bearer ' + PM_SUPABASE_KEY,
+    'Content-Type': 'application/json'
+  }, extra);
+}
+
+async function testarPonteSupabase(){
+  try{
+    const r=await fetch(PM_SUPABASE_REST+'?select=catalog_product_id&limit=100',{
+      headers:supabaseHeaders()
+    });
+    const data=await r.json().catch(()=>null);
+    if(!r.ok) throw new Error(data?.message||data?.error||('HTTP '+r.status));
+    toast('Ponte Supabase OK ✅\nRegistros no acervo: '+(Array.isArray(data)?data.length:0));
+  }catch(e){
+    console.error(e);
+    alert('Falha na conexão com a Ponte Supabase.\n\n'+e.message);
+  }
+}
+
+function blobToDataURLForPonte(blob){
+  return new Promise((resolve,reject)=>{
+    if(!(blob instanceof Blob)) return resolve('');
+    const r=new FileReader();
+    r.onload=()=>resolve(r.result||'');
+    r.onerror=()=>reject(r.error||new Error('Falha ao ler foto'));
+    r.readAsDataURL(blob);
+  });
+}
+
+async function catalogProductForSupabase(p){
+  const photo=p.photoBlob instanceof Blob
+    ? await blobToDataURLForPonte(p.photoBlob)
+    : (typeof p.photo==='string'?p.photo:'');
+  const variants=[];
+  for(const v of (Array.isArray(p.variants)?p.variants:[])){
+    variants.push({
+      name:String(v.name||''),
+      photo:v.blob instanceof Blob ? await blobToDataURLForPonte(v.blob) : (typeof v.photo==='string'?v.photo:'')
+    });
+  }
+  return {
+    catalog_product_id:String(p.id),
+    name:String(p.name||''),
+    price:Number(p.price)||0,
+    cat:String(p.cat||''),
+    subcat:String(p.subcat||''),
+    obs:String(p.obs||p.note||''),
+    photo,
+    variants,
+    updated_at:new Date().toISOString()
+  };
+}
+
+async function enviarPecaPonte(id){
+  if(!adminMode){adminLogin();return;}
+  const p=products.find(x=>String(x.id)===String(id));
+  if(!p){toast('Peça não encontrada no catálogo.');return;}
+  const ok=confirm('Enviar somente esta peça para a Ponte Supabase?\n\n'+p.name);
+  if(!ok)return;
+  try{
+    const payload=await catalogProductForSupabase(p);
+    const r=await fetch(PM_SUPABASE_REST+'?on_conflict=catalog_product_id',{
+      method:'POST',
+      headers:supabaseHeaders({'Prefer':'resolution=merge-duplicates,return=representation'}),
+      body:JSON.stringify(payload)
+    });
+    const data=await r.json().catch(()=>null);
+    if(!r.ok) throw new Error(data?.message||data?.details||data?.hint||data?.error||('HTTP '+r.status));
+    const count=Array.isArray(data)?data.length:0;
+    toast('Peça enviada à ponte ✅\n'+p.name+'\nRegistros retornados: '+count);
+  }catch(e){
+    console.error(e);
+    alert('Não foi possível enviar a peça.\n\n'+e.message);
+  }
+}
+
+
+async function sincronizarTudoPonte(){
+  if(!adminMode){adminLogin();return;}
+  const lista=Array.isArray(products)?products:[];
+  if(!lista.length){toast('Nenhuma peça encontrada no catálogo.');return;}
+  const ok=confirm('Sincronizar TODO o acervo atual com a Ponte Supabase?\n\nPeças encontradas: '+lista.length+'\n\nAs peças serão gravadas por ID único do catálogo. Isso atualiza o que já existir e não cria duplicatas.');
+  if(!ok)return;
+  const btn=document.getElementById('btnSyncAllSupabase');
+  if(btn) btn.disabled=true;
+  let sucesso=0, erros=[];
+  try{
+    for(let i=0;i<lista.length;i++){
+      const p=lista[i];
+      try{
+        const payload=await catalogProductForSupabase(p);
+        const r=await fetch(PM_SUPABASE_REST+'?on_conflict=catalog_product_id',{
+          method:'POST',
+          headers:supabaseHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),
+          body:JSON.stringify(payload)
+        });
+        const data=await r.json().catch(()=>null);
+        if(!r.ok) throw new Error(data?.message||data?.details||data?.hint||data?.error||('HTTP '+r.status));
+        sucesso++;
+        if(btn) btn.textContent='🔄 '+(i+1)+'/'+lista.length;
+      }catch(e){
+        erros.push((p.name||'Peça sem nome')+': '+e.message);
+      }
+    }
+    if(erros.length){
+      alert('Sincronização concluída com ressalvas.\n\nEnviadas com sucesso: '+sucesso+'\nFalhas: '+erros.length+'\n\n'+erros.slice(0,8).join('\n'));
+    }else{
+      toast('Sincronização concluída ✅\n'+sucesso+' peça(s) na Ponte Supabase.');
+    }
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='🔄 Sincronizar tudo';}
+  }
+}
+
+const btnTestSupabase=document.getElementById('btnTestSupabase');
+if(btnTestSupabase) btnTestSupabase.addEventListener('click',testarPonteSupabase);
+const btnSyncAllSupabase=document.getElementById('btnSyncAllSupabase');
+if(btnSyncAllSupabase) btnSyncAllSupabase.addEventListener('click',sincronizarTudoPonte);
 </script>
 </body>
 </html>
