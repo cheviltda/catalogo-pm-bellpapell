@@ -600,8 +600,57 @@ function getAllProducts(){return new Promise((resolve,reject)=>{const req=produc
 function putProduct(item){return new Promise((resolve,reject)=>{const req=productStore("readwrite").put(item);req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error)})}
 function deleteProductDB(id){return new Promise((resolve,reject)=>{const req=productStore("readwrite").delete(id);req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error)})}
 
+async function carregarAcervoDaPonte(){
+  try{
+    const r=await fetch(PM_SUPABASE_REST+'?select=catalog_product_id,name,price,cat,subcat,obs,photo,variants,updated_at&order=updated_at.desc&limit=1000',{headers:supabaseHeaders()});
+    const data=await r.json().catch(()=>null);
+    if(!r.ok) throw new Error(data?.message||data?.error||('HTTP '+r.status));
+    if(!Array.isArray(data) || !data.length) return false;
+    const converted=[];
+    for(const row of data){
+      const rawId=String(row.catalog_product_id ?? '');
+      const id=/^\d+$/.test(rawId) ? Number(rawId) : rawId;
+      const item={
+        id,
+        name:String(row.name||''),
+        price:Number(row.price)||0,
+        cat:String(row.cat||''),
+        subcat:String(row.subcat||''),
+        obs:String(row.obs||''),
+        updated_at:row.updated_at||''
+      };
+      if(typeof row.photo==='string' && row.photo.startsWith('data:')){
+        try{item.photoBlob=dataUrlToBlob(row.photo)}catch(e){}
+      } else if(typeof row.photo==='string' && row.photo){
+        item.photo=row.photo;
+      }
+      if(Array.isArray(row.variants) && row.variants.length){
+        item.variants=[];
+        for(const v of row.variants){
+          const variant={name:String(v?.name||'')};
+          if(typeof v?.photo==='string' && v.photo.startsWith('data:')){
+            try{variant.blob=dataUrlToBlob(v.photo)}catch(e){}
+          } else if(typeof v?.photo==='string' && v.photo){
+            variant.photo=v.photo;
+          }
+          item.variants.push(variant);
+        }
+      }
+      converted.push(item);
+    }
+    for(const item of converted) await putProduct(item);
+    products=await getAllProducts();
+    return products.length>0;
+  }catch(e){
+    console.error('Falha ao carregar acervo da Ponte Supabase',e);
+    return false;
+  }
+}
+
 async function initProductStorage(){
   if(!panelDB) await openPanelDB();
+  const ponteOk=await carregarAcervoDaPonte();
+  if(ponteOk){return}
   const existing=await getAllProducts();
   if(existing.length){products=existing;return}
   const oldRaw=localStorage.getItem("bellpapellProducts");
