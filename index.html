@@ -600,6 +600,21 @@ function getAllProducts(){return new Promise((resolve,reject)=>{const req=produc
 function putProduct(item){return new Promise((resolve,reject)=>{const req=productStore("readwrite").put(item);req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error)})}
 function deleteProductDB(id){return new Promise((resolve,reject)=>{const req=productStore("readwrite").delete(id);req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error)})}
 
+// PONTE SUPABASE - carregamento automático do acervo no catálogo.
+// Estas constantes precisam existir ANTES da inicialização do catálogo.
+const PM_SUPABASE_URL = 'https://lkvqurdokdkcjhazscvv.supabase.co';
+const PM_SUPABASE_KEY = 'sb_publishable_oNEz5f1BERX0BJcF4iOAdA_r0-cZAgT';
+const PM_SUPABASE_TABLE = 'acervo';
+const PM_SUPABASE_REST = PM_SUPABASE_URL + '/rest/v1/' + PM_SUPABASE_TABLE;
+
+function supabaseHeaders(extra={}){
+  return Object.assign({
+    'apikey': PM_SUPABASE_KEY,
+    'Authorization': 'Bearer ' + PM_SUPABASE_KEY,
+    'Content-Type': 'application/json'
+  }, extra);
+}
+
 async function carregarAcervoDaPonte(){
   try{
     const r=await fetch(PM_SUPABASE_REST+'?select=catalog_product_id,name,price,cat,subcat,obs,photo,variants,updated_at&order=updated_at.desc&limit=1000',{headers:supabaseHeaders()});
@@ -1048,22 +1063,6 @@ if(adminPin) adminPin.addEventListener("keydown", function(e){
 </script>
 
 <script>
-// PONTE SUPABASE V7 - SOMENTE NA CÓPIA DE TESTE.
-// Usa o mesmo IndexedDB do catálogo porque esta página deve ser colocada
-// dentro do MESMO repositório GitHub Pages, em uma pasta /teste/.
-const PM_SUPABASE_URL = 'https://lkvqurdokdkcjhazscvv.supabase.co';
-const PM_SUPABASE_KEY = 'sb_publishable_oNEz5f1BERX0BJcF4iOAdA_r0-cZAgT';
-const PM_SUPABASE_TABLE = 'acervo';
-const PM_SUPABASE_REST = PM_SUPABASE_URL + '/rest/v1/' + PM_SUPABASE_TABLE;
-
-function supabaseHeaders(extra={}){
-  return Object.assign({
-    'apikey': PM_SUPABASE_KEY,
-    'Authorization': 'Bearer ' + PM_SUPABASE_KEY,
-    'Content-Type': 'application/json'
-  }, extra);
-}
-
 async function testarPonteSupabase(){
   try{
     const r=await fetch(PM_SUPABASE_REST+'?select=catalog_product_id&limit=100',{
