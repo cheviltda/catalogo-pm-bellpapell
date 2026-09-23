@@ -1177,6 +1177,319 @@ if(btnTestSupabase) btnTestSupabase.addEventListener('click',testarPonteSupabase
 const btnSyncAllSupabase=document.getElementById('btnSyncAllSupabase');
 if(btnSyncAllSupabase) btnSyncAllSupabase.addEventListener('click',sincronizarTudoPonte);
 </script>
+<script>
+/* ================================================================
+   CATÁLOGO P&M BELLPAPELL V9.1
+   Centralização Supabase dos Painéis e Bolos Fake.
+   Supabase = fonte de verdade. IndexedDB = cache local.
+   ================================================================ */
+(function(){
+  function dataUrlToBlobV91(dataUrl){
+    if(!dataUrl || typeof dataUrl!=='string') return null;
+    try{
+      const parts=dataUrl.split(',');
+      const bin=atob(parts[1]||'');
+      const arr=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+      const mime=(parts[0].match(/data:([^;]+)/)||[])[1]||'image/jpeg';
+      return new Blob([arr],{type:mime});
+    }catch(e){ console.error('V9.1 dataUrlToBlob',e); return null; }
+  }
+
+  function blobToDataUrlV91(blob){
+    return new Promise((resolve,reject)=>{
+      if(!(blob instanceof Blob)) return resolve('');
+      const reader=new FileReader();
+      reader.onload=()=>resolve(reader.result||'');
+      reader.onerror=()=>reject(reader.error||new Error('Falha ao ler imagem'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function upsertV91(row){
+    const r=await fetch(PM_SUPABASE_REST+'?on_conflict=catalog_product_id',{
+      method:'POST',
+      headers:supabaseHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),
+      body:JSON.stringify(row)
+    });
+    if(!r.ok){
+      const d=await r.json().catch(()=>null);
+      throw new Error(d?.message||d?.details||d?.hint||d?.error||('HTTP '+r.status));
+    }
+  }
+
+  async function deleteRemoteV91(id){
+    const r=await fetch(PM_SUPABASE_REST+'?catalog_product_id=eq.'+encodeURIComponent(String(id)),{
+      method:'DELETE',
+      headers:supabaseHeaders({'Prefer':'return=minimal'})
+    });
+    if(!r.ok){
+      const d=await r.json().catch(()=>null);
+      throw new Error(d?.message||d?.details||d?.hint||d?.error||('HTTP '+r.status));
+    }
+  }
+
+  async function fetchAcervoV91(){
+    const r=await fetch(PM_SUPABASE_REST+'?select=catalog_product_id,name,price,cat,subcat,obs,photo,variants,updated_at&order=updated_at.desc&limit=1000',{
+      headers:supabaseHeaders()
+    });
+    const d=await r.json().catch(()=>null);
+    if(!r.ok) throw new Error(d?.message||d?.details||d?.hint||d?.error||('HTTP '+r.status));
+    if(!Array.isArray(d)) throw new Error('A Ponte Supabase não retornou uma lista de registros.');
+    return d;
+  }
+
+  async function pushLocaisV91(){
+    if(typeof openPanelDB==='function') await openPanelDB();
+    const panels=typeof getAllPanelPhotos==='function'?await getAllPanelPhotos():[];
+    const cakes=typeof getAllCakePhotos==='function'?await getAllCakePhotos():[];
+    let enviados=0;
+
+    for(const item of panels){
+      await upsertV91({
+        catalog_product_id:'panel:'+String(item.id),
+        name:'Painel '+(item.size==='50x50'?'50 × 50 cm':'130 cm ou 150 cm'),
+        price:Number(item.price ?? (typeof panelPrice==='function'?panelPrice(item.size):0))||0,
+        cat:'paineis',
+        subcat:String(item.size||'50x50'),
+        obs:'',
+        photo:await blobToDataUrlV91(item.blob),
+        variants:[],
+        updated_at:new Date().toISOString()
+      });
+      enviados++;
+    }
+
+    for(const item of cakes){
+      const fallback=typeof cakePrice==='function'?cakePrice(item.type):null;
+      await upsertV91({
+        catalog_product_id:'cake:'+String(item.id),
+        name:typeof cakeTypeName==='function'?cakeTypeName(item.type):'Bolo Fake',
+        price:item.price!=null?Number(item.price):fallback,
+        cat:'bolos-fake',
+        subcat:String(item.type||'simples'),
+        obs:'',
+        photo:await blobToDataUrlV91(item.blob),
+        variants:[],
+        updated_at:new Date().toISOString()
+      });
+      enviados++;
+    }
+    return enviados;
+  }
+
+  async function limparCacheEspecialV91(){
+    if(typeof openPanelDB==='function') await openPanelDB();
+    const panels=typeof getAllPanelPhotos==='function'?await getAllPanelPhotos():[];
+    const cakes=typeof getAllCakePhotos==='function'?await getAllCakePhotos():[];
+    for(const x of panels) await deletePanelPhotoDB(String(x.id));
+    for(const x of cakes) await deleteCakePhotoDB(String(x.id));
+  }
+
+  async function reconstruirEspeciaisV91(rows){
+    const especiais=rows.filter(r=>r.cat==='paineis'||r.cat==='bolos-fake');
+    await limparCacheEspecialV91();
+
+    for(const r of especiais.filter(x=>x.cat==='paineis')){
+      const blob=dataUrlToBlobV91(r.photo);
+      if(!blob) continue;
+      await putPanelPhoto({
+        id:String(r.catalog_product_id).replace(/^panel:/,''),
+        size:String(r.subcat||'50x50'),
+        price:Number(r.price)||0,
+        blob
+      });
+    }
+
+    for(const r of especiais.filter(x=>x.cat==='bolos-fake')){
+      const blob=dataUrlToBlobV91(r.photo);
+      if(!blob) continue;
+      await putCakePhoto({
+        id:String(r.catalog_product_id).replace(/^cake:/,''),
+        type:String(r.subcat||'simples'),
+        price:r.price==null?null:Number(r.price)||0,
+        blob
+      });
+    }
+    return {panels:especiais.filter(x=>x.cat==='paineis').length,cakes:especiais.filter(x=>x.cat==='bolos-fake').length};
+  }
+
+  async function centralizarV91(){
+    try{
+      // Primeiro salva o que existe localmente. Assim uma foto criada no aparelho
+      // não desaparece só porque a Ponte ainda não tinha aquele registro.
+      const enviados=await pushLocaisV91();
+      const rows=await fetchAcervoV91();
+
+      const normais=rows.filter(r=>r.cat!=='paineis'&&r.cat!=='bolos-fake');
+      products=normais.map(p=>({
+        id:String(p.catalog_product_id),
+        name:p.name||'',
+        price:Number(p.price)||0,
+        cat:p.cat||'',
+        subcat:p.subcat||'',
+        obs:p.obs||'',
+        photo:p.photo||'',
+        variants:Array.isArray(p.variants)?p.variants.map(v=>({
+          name:v?.name||'',
+          photo:v?.photo||'',
+          blob:dataUrlToBlobV91(v?.photo)
+        })):[]
+      }));
+
+      // O cache dos produtos normais continua sendo mantido pelo fluxo existente.
+      try{ await saveProducts(); }catch(e){ console.warn('V9.1: cache de produtos normais não atualizado',e); }
+
+      const counts=await reconstruirEspeciaisV91(rows);
+
+      // Os preços dos painéis passam a ser lidos da Ponte.
+      const p50=rows.find(r=>r.cat==='paineis'&&r.subcat==='50x50');
+      const p130=rows.find(r=>r.cat==='paineis'&&r.subcat==='130ou150');
+      if(p50||p130){
+        panelPrices={
+          '50x50':p50?Number(p50.price)||0:(panelPrices['50x50']??0),
+          '130ou150':p130?Number(p130.price)||0:(panelPrices['130ou150']??0)
+        };
+        localStorage.setItem('bellpapellPanelPrices',JSON.stringify(panelPrices));
+      }
+
+      await refreshPanelPhotos();
+      await renderProducts();
+      if(activeCategory==='paineis') await showPanelGallery();
+      if(activeCategory==='bolos-fake'&&typeof showCakeGallery==='function') await showCakeGallery();
+
+      console.log('Catálogo V9.1 centralizado',{enviados,registros:rows.length,painéis:counts.panels,bolos:counts.cakes});
+      return true;
+    }catch(e){
+      console.error('Falha na centralização V9.1',e);
+      toast('Ponte Supabase indisponível. O catálogo local foi preservado.');
+      return false;
+    }
+  }
+
+  window.addPanelPhotos=async function(event){
+    if(!adminMode) return;
+    const size=event.target.dataset.size||activePanelSize;
+    const files=[...event.target.files];
+    if(!files.length) return;
+    const btns=document.querySelectorAll('.admin-btn.primary');
+    btns.forEach(b=>b.disabled=true);
+    let added=0;
+    try{
+      for(const file of files){
+        if(!file.type.startsWith('image/')) continue;
+        const id=crypto.randomUUID?crypto.randomUUID():(Date.now()+'-'+Math.random());
+        const price=Number(panelPrice(size))||0;
+        await putPanelPhoto({id,size,price,blob:file});
+        await upsertV91({
+          catalog_product_id:'panel:'+id,
+          name:'Painel '+(size==='50x50'?'50 × 50 cm':'130 cm ou 150 cm'),
+          price,cat:'paineis',subcat:size,obs:'',photo:await blobToDataUrlV91(file),variants:[],updated_at:new Date().toISOString()
+        });
+        added++;
+      }
+      await refreshPanelPhotos();
+      await showPanelGallery();
+      toast(added+' painel(is) sincronizado(s). 📸');
+    }catch(e){
+      console.error(e); toast('Não foi possível sincronizar os painéis.');
+    }finally{
+      btns.forEach(b=>b.disabled=false);
+      event.target.value='';
+    }
+  };
+
+  window.deletePanelPhoto=async function(size,id){
+    if(!adminMode) return;
+    if(!confirm('Excluir esta foto do catálogo?')) return;
+    try{
+      await deletePanelPhotoDB(String(id));
+      selection=selection.filter(x=>String(x)!=='panel:'+String(id));
+      save();
+      await deleteRemoteV91('panel:'+String(id));
+      await refreshPanelPhotos();
+      await showPanelGallery();
+      toast('Foto excluída.');
+    }catch(e){
+      console.error(e); toast('Não foi possível excluir a foto da Ponte Supabase.');
+    }
+  };
+
+  window.savePanelPrices=async function(){
+    if(!adminMode){adminLogin();return;}
+    const a=Number(document.getElementById('panelPrice50').value);
+    const b=Number(document.getElementById('panelPrice130').value);
+    if(!Number.isFinite(a)||a<0||!Number.isFinite(b)||b<0){toast('Informe os dois valores corretamente.');return;}
+    panelPrices={'50x50':a,'130ou150':b};
+    localStorage.setItem('bellpapellPanelPrices',JSON.stringify(panelPrices));
+    try{
+      const rows=await fetchAcervoV91();
+      for(const r of rows.filter(x=>x.cat==='paineis')){
+        await upsertV91({...r,price:r.subcat==='50x50'?a:b,updated_at:new Date().toISOString()});
+      }
+      await centralizarV91();
+      await showPanelGallery();
+      toast('Valores dos painéis salvos na Ponte. 💗');
+    }catch(e){
+      console.error(e); toast('Preço salvo no aparelho, mas não foi sincronizado com a Ponte.');
+    }
+  };
+
+  window.panelPrice=function(size){
+    const list=(panelPhotos&&panelPhotos[size])||[];
+    const item=list.find(x=>x.price!==undefined&&x.price!==null);
+    if(item) return Number(item.price)||0;
+    const v=panelPrices[size];
+    return Number.isFinite(Number(v))?Number(v):null;
+  };
+
+  window.addCakePhotos=async function(event){
+    if(!adminMode) return;
+    const type=event.target.dataset.type||activeCakeType||'simples';
+    const files=[...event.target.files];
+    if(!files.length) return;
+    let added=0;
+    try{
+      for(const file of files){
+        if(!file.type.startsWith('image/')) continue;
+        const id=crypto.randomUUID?crypto.randomUUID():(Date.now()+'-'+Math.random());
+        const price=typeof cakePrice==='function'?cakePrice(type):null;
+        await putCakePhoto({id,type,price,blob:file});
+        await upsertV91({
+          catalog_product_id:'cake:'+id,
+          name:typeof cakeTypeName==='function'?cakeTypeName(type):'Bolo Fake',
+          price,cat:'bolos-fake',subcat:type,obs:'',photo:await blobToDataUrlV91(file),variants:[],updated_at:new Date().toISOString()
+        });
+        added++;
+      }
+      if(typeof refreshCakePhotos==='function') await refreshCakePhotos();
+      if(typeof showCakeGallery==='function') await showCakeGallery();
+      toast(added+' bolo(s) sincronizado(s). 🎂');
+    }catch(e){
+      console.error(e); toast('Não foi possível sincronizar os bolos fake.');
+    }finally{ event.target.value=''; }
+  };
+
+  window.deleteCakePhoto=async function(id){
+    if(!adminMode) return;
+    if(!confirm('Excluir esta foto de bolo fake do catálogo?')) return;
+    try{
+      await deleteCakePhotoDB(String(id));
+      selection=selection.filter(x=>String(x)!==String(id)&&String(x)!=='cake:'+String(id));
+      save();
+      await deleteRemoteV91('cake:'+String(id));
+      await showCakeType(activeCakeType);
+      toast('Foto de bolo excluída.');
+    }catch(e){
+      console.error(e); toast('Não foi possível excluir o bolo da Ponte Supabase.');
+    }
+  };
+
+  window.sincronizarEspeciaisV91=centralizarV91;
+  // Dá tempo para o IndexedDB terminar a inicialização original.
+  setTimeout(centralizarV91,1200);
+})();
+</script>
 </body>
 </html>
 
